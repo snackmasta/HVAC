@@ -5,12 +5,14 @@ This document outlines the control plan for the HVAC system, including control l
 ## Overview
 - Description of the HVAC system's control objectives for multiple rooms
 - Key components: sensors, actuators, controllers for each room
+- Designed in accordance with industrial standards (e.g., ASHRAE, ISO 16484, IEC 61131 for PLCs)
 
 ## Control Logic
 - Independent temperature and humidity regulation for each room
 - Fan and compressor control per room
 - Shared and dedicated equipment handling
 - Safety and fault handling (room-specific and global)
+- Control logic follows best practices from industrial standards for reliability and safety
 
 ## Sequence of Operations
 1. System startup and initialization (all rooms)
@@ -21,6 +23,7 @@ This document outlines the control plan for the HVAC system, including control l
 ## Sensors and Actuators
 - List of sensors (temperature, humidity, etc.) for each room
 - List of actuators (fans, dampers, compressors) per room
+- All components selected to meet relevant industrial standards
 
 ## Diagrams
 - (Insert control logic diagrams for multi-room setup as needed)
