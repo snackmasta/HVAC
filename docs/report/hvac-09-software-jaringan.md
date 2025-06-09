@@ -1,4 +1,4 @@
-# Perangkat Lunak Jaringan Kendali HVAC
+# 9. Perangkat Lunak Jaringan Kendali HVAC
 
 Perangkat lunak jaringan kendali HVAC terdiri dari:
 - **PLC Program**: Logika kontrol utama (Structured Text/ladder) untuk mengatur urutan operasi, safety, dan fault handling.
@@ -7,43 +7,43 @@ Perangkat lunak jaringan kendali HVAC terdiri dari:
 - **Simulasi**: Program simulasi (misal: Python) untuk pengujian logika dan visualisasi proses sebelum implementasi fisik.
 - **Data Logging**: Fitur pencatatan data proses untuk analisis dan troubleshooting.
 
-## Lampiran: Control System Plan and I/O Table
+## 9.1 Lampiran: Control System Plan and I/O Table
 
-### 1. Control Philosophy
+### 9.1.1 Control Philosophy
 - The system is fully automated with manual override for all pumps and valves.
-- Main control logic is based on water levels, flow, pressure, and turbidity.
+- Main control logic is based on air levels, flow, pressure, and turbidity.
 - Alarms are generated for abnormal conditions (low/high level, high turbidity, low pressure, etc.).
 - All critical parameters are monitored and logged.
 - Local HMI/SCADA for operator interface; remote monitoring optional.
 - **Architecture Update:** The system now uses a modular process and control architecture, with clear separation of sensors, logic, and actuators as shown in the updated flowcharts. PLC/SCADA or software logic group handles all process decisions and actuator commands.
 
-### 2. Main Control Logic
-- **Seawater Intake Pump**: Starts if pre-treatment and RO are ready, stops on low ground tank level or alarm.
+### 9.1.2 Main Control Logic
+- **Intake Fan**: Starts if pre-treatment and HVAC are ready, stops on low ground tank level or alarm.
 - **Pre-treatment**: Backwash cycle triggered by high differential pressure or timer.
-- **RO High-Pressure Pump**: Starts if pre-treatment is OK and ground tank has sufficient level; stops on low pressure, high pressure, or low ground tank level.
-- **Post-treatment**: Disinfection and remineralization run in parallel with RO output.
-- **Transfer Pump to Roof Tank**: Starts if roof tank is not full and ground tank has water; stops if roof tank is full or ground tank is low.
+- **HVAC High-Pressure Pump**: Starts if pre-treatment is OK and ground tank has sufficient level; stops on low pressure, high pressure, or low ground tank level.
+- **Post-treatment**: Disinfection runs in parallel with HVAC output.
+- **Transfer Pump to Roof Tank**: Starts if roof tank is not full and ground tank has air; stops if roof tank is full or ground tank is low.
 - **Alarms**: Any abnormal sensor reading triggers alarm and can stop relevant equipment.
 - **Architecture Update:** Logic is now explicitly mapped from sensors to logic functions to actuators, as per the new flowcharts. All sensor values are routed to a central logic group (PLC or software), which then controls actuators.
 
-### 3. I/O Table
+### 9.1.3 I/O Table
 | Tag/Name                | Type      | Description                                 | Location                | PLC Variable    | HMI Display |
 |-------------------------|-----------|---------------------------------------------|-------------------------|-----------------|-------------|
 | LT-101                  | AI        | Ground Tank Level Transmitter               | Ground Tank             | LT_101          | ground      |
 | LT-102                  | AI        | Roof Tank Level Transmitter                 | Roof Tank               | LT_102          | roof        |
 | FT-101                  | AI        | Intake Flow Transmitter                     | Intake Line             | FT_101          | (not displayed) |
-| FT-102                  | AI        | RO Permeate Flow Transmitter                | RO Outlet               | FT_102          | (not displayed) |
-| PT-101                  | AI        | RO Feed Pressure Transmitter                | RO Feed                 | PT_101          | press       |
-| PT-102                  | AI        | RO Permeate Pressure Transmitter            | RO Outlet               | PT_102          | (not displayed) |
+| FT-102                  | AI        | HVAC Output Flow Transmitter                | HVAC Outlet             | FT_102          | (not displayed) |
+| PT-101                  | AI        | HVAC Feed Pressure Transmitter              | HVAC Feed               | PT_101          | press       |
+| PT-102                  | AI        | HVAC Output Pressure Transmitter            | HVAC Outlet             | PT_102          | (not displayed) |
 | TU-101                  | AI        | Pre-treatment Turbidity Sensor              | Pre-treatment Outlet    | TU_101          | turb        |
-| P-101                   | DO        | Seawater Intake Pump Start/Stop             | Intake                  | P_101           | intake      |
-| P-102                   | DO        | RO High-Pressure Pump Start/Stop            | RO Feed                 | P_102           | ro          |
+| P-101                   | DO        | Intake Fan Start/Stop                       | Intake                  | P_101           | intake      |
+| P-102                   | DO        | HVAC High-Pressure Pump Start/Stop          | HVAC Feed               | P_102           | hvac        |
 | P-103                   | DO        | Post-treatment Pump Start/Stop              | Post-treatment          | P_103           | p103        |
 | P-104                   | DO        | Transfer Pump to Ground Tank                | Post-treatment          | P_104           | p104        |
 | P-105                   | DO        | Pump to Rooftop                             | Pump Room               | P_105           | p105        |
 | P-106                   | DO        | Transfer Pump to Roof Tank                  | Pump Room               | P_106           | p106        |
 | V-101                   | DO        | Motorized Valve (Primary)                   | Main Process Line       | V_101           | v101        |
-| V-102                   | DO        | RO Feed Valve                               | RO Feed Line            | V_102           | (not displayed) |
+| V-102                   | DO        | HVAC Feed Valve                             | HVAC Feed Line          | V_102           | (not displayed) |
 | V-103                   | DO        | Post-treatment Valve                        | Post-treatment Line     | V_103           | (not displayed) |
 | V-104                   | DO        | Ground Transfer Valve                       | Ground Transfer Line    | V_104           | (not displayed) |
 | V-105                   | DO        | Rooftop Pump Valve                          | Rooftop Line            | V_105           | (not displayed) |
@@ -74,7 +74,7 @@ Perangkat lunak jaringan kendali HVAC terdiri dari:
 - DI: Digital Input
 - Comm: Communication
 
-### 4. Control Logic Summary
+### 9.1.4 Control Logic Summary
 
 #### System States:
 1. **Emergency Stop**: All actuators OFF, ALM-101 ON, System_Running = FALSE
@@ -95,7 +95,7 @@ Perangkat lunak jaringan kendali HVAC terdiri dari:
 - **PRV_101**: PT_101 > 70 bar (pressure relief)
 - **Alarm**: TU_101 > 10 NTU OR PT_101 < 45 OR PT_101 > 75 OR LT_101 < 10% OR LT_102 > 98%
 
-### 5. Notes
+### 9.2 Notes
 - All analog signals are 4–20 mA.
 - All pumps and valves have local/remote and manual/auto modes.
 - System can be expanded for remote monitoring, data logging, and advanced diagnostics.
