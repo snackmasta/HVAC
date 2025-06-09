@@ -3,6 +3,28 @@ import threading
 import time
 from hvac_sim import HVACSystem
 
+class LEDIndicator(tk.Canvas):
+    def __init__(self, parent, size=15, color_on='#22ff22', color_off='#444444', **kwargs):
+        super().__init__(parent, width=size, height=size, bd=0, highlightthickness=0, **kwargs)
+        self.size = size
+        self.color_on = color_on
+        self.color_off = color_off
+        self.state = False
+        self._draw()
+    
+    def _draw(self):
+        self.delete('all')
+        color = self.color_on if self.state else self.color_off
+        # Draw main circle
+        self.create_oval(2, 2, self.size-2, self.size-2, fill=color, outline='#222222')
+        if self.state:
+            # Add highlight for "on" state
+            self.create_oval(4, 4, self.size-4, self.size-4, fill='', outline='#ffffff', width=1)
+    
+    def set_state(self, state):
+        self.state = bool(state)
+        self._draw()
+
 class HVACScadaGUI:
     def __init__(self, root, system: HVACSystem):
         self.root = root
@@ -15,75 +37,206 @@ class HVACScadaGUI:
         self._build_gui()
         self._running = False
 
+    def _set_status_color(self, var, label_widget, on_value, off_value):
+        # Helper to set color based on value
+        value = var.get()
+        if value == on_value:
+            label_widget.config(fg='green')
+        elif value == off_value:
+            label_widget.config(fg='red')
+        else:
+            label_widget.config(fg='black')
+
     def _build_gui(self):
-        self.root.title("HVAC System SCADA HMI Simulation")
-        frame_status = tk.LabelFrame(self.root, text="System Status", padx=10, pady=5, font=("Arial", 11, "bold"))
-        frame_status.grid(row=0, column=0, padx=10, pady=5, sticky='ew')
-        frame_zones = tk.LabelFrame(self.root, text="Zones", padx=10, pady=5, font=("Arial", 11, "bold"))
-        frame_zones.grid(row=1, column=0, padx=10, pady=5, sticky='ew')
-        frame_act = tk.LabelFrame(self.root, text="Actuators", padx=10, pady=5, font=("Arial", 11, "bold"))
-        frame_act.grid(row=2, column=0, padx=10, pady=5, sticky='ew')
-        frame_ctrl = tk.LabelFrame(self.root, text="Controls", padx=10, pady=5, font=("Arial", 11, "bold"))
-        frame_ctrl.grid(row=3, column=0, padx=10, pady=10, sticky='ew')
-        frame_set = tk.LabelFrame(self.root, text="Setpoint & Ambience", padx=10, pady=5, font=("Arial", 11, "bold"))
-        frame_set.grid(row=4, column=0, padx=10, pady=5, sticky='ew')
-        # Status
-        tk.Label(frame_status, text="System Status:", font=("Arial", 11)).grid(row=0, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['system_status'], font=("Arial", 11, "bold")).grid(row=0, column=1, sticky='w')
-        tk.Label(frame_status, text="Mode:", font=("Arial", 11)).grid(row=1, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['mode'], font=("Arial", 11)).grid(row=1, column=1, sticky='w')
-        tk.Label(frame_status, text="MAT:", font=("Arial", 11)).grid(row=2, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['MAT'], font=("Arial", 11)).grid(row=2, column=1, sticky='w')
-        tk.Label(frame_status, text="SAT:", font=("Arial", 11)).grid(row=3, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['SAT'], font=("Arial", 11)).grid(row=3, column=1, sticky='w')
-        tk.Label(frame_status, text="AF_SF:", font=("Arial", 11)).grid(row=4, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['AF_SF'], font=("Arial", 11)).grid(row=4, column=1, sticky='w')
-        tk.Label(frame_status, text="AF_RF:", font=("Arial", 11)).grid(row=5, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['AF_RF'], font=("Arial", 11)).grid(row=5, column=1, sticky='w')
-        tk.Label(frame_status, text="Fan RPM:", font=("Arial", 11)).grid(row=6, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['fan_rpm'], font=("Arial", 11)).grid(row=6, column=1, sticky='w')
-        tk.Label(frame_status, text="Coil Output Temp:", font=("Arial", 11)).grid(row=7, column=0, sticky='e')
-        tk.Label(frame_status, textvariable=self.vars['coil_temp'], font=("Arial", 11)).grid(row=7, column=1, sticky='w')
-        # Zones
-        for i in range(3):
-            tk.Label(frame_zones, text=f"Zone {i+1} Temp:", font=("Arial", 11)).grid(row=i, column=0, sticky='e')
-            tk.Label(frame_zones, textvariable=self.vars[f'Z{i+1}T'], font=("Arial", 11)).grid(row=i, column=1, sticky='w')
-            tk.Label(frame_zones, text=f"Zone {i+1} CO₂:", font=("Arial", 11)).grid(row=i, column=2, sticky='e')
-            tk.Label(frame_zones, textvariable=self.vars[f'CO2_{i+1}'], font=("Arial", 11)).grid(row=i, column=3, sticky='w')
-            tk.Label(frame_zones, text=f"VAV {i+1} Pos:", font=("Arial", 11)).grid(row=i, column=4, sticky='e')
-            tk.Label(frame_zones, textvariable=self.vars[f'VAV{i+1}A'], font=("Arial", 11)).grid(row=i, column=5, sticky='w')
-        # Actuators
-        tk.Label(frame_act, text="Supply Fan (Cooling):", font=("Arial", 11)).grid(row=0, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['SF_Cool'], font=("Arial", 11)).grid(row=0, column=1, sticky='w')
-        tk.Label(frame_act, text="Supply Fan (Heating):", font=("Arial", 11)).grid(row=1, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['SF_Heat'], font=("Arial", 11)).grid(row=1, column=1, sticky='w')
-        tk.Label(frame_act, text="Return Fan:", font=("Arial", 11)).grid(row=2, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['RF'], font=("Arial", 11)).grid(row=2, column=1, sticky='w')
-        tk.Label(frame_act, text="Cooling Coil Valve:", font=("Arial", 11)).grid(row=3, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['CC_A'], font=("Arial", 11)).grid(row=3, column=1, sticky='w')
-        tk.Label(frame_act, text="Heating Coil Valve:", font=("Arial", 11)).grid(row=4, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['HC_A'], font=("Arial", 11)).grid(row=4, column=1, sticky='w')
-        tk.Label(frame_act, text="Alarm:", font=("Arial", 11, "bold")).grid(row=5, column=0, sticky='e')
-        tk.Label(frame_act, textvariable=self.vars['alarm'], font=("Arial", 11, "bold")).grid(row=5, column=1, sticky='w')
-        # Controls
-        self.start_btn = tk.Button(frame_ctrl, text="Start", width=10, command=self.start_system)
-        self.start_btn.grid(row=0, column=0, padx=5)
-        self.stop_btn = tk.Button(frame_ctrl, text="Stop", width=10, command=self.stop_system)
-        self.stop_btn.grid(row=0, column=1, padx=5)
-        self.quit_btn = tk.Button(frame_ctrl, text="Quit", width=10, command=self.root.quit)
-        self.quit_btn.grid(row=0, column=2, padx=5)
-        self.emergency_btn = tk.Button(frame_ctrl, text="Emergency", width=12, command=self.emergency_stop, bg='red', fg='white')
+        # Color scheme
+        colors = {
+            'bg_dark': '#1e1e2f',           # Dark blue-gray background
+            'bg_darker': '#27293d',         # Darker panel background
+            'text_light': '#e9ecef',        # Light text
+            'text_dim': '#8f9ba6',          # Dimmed text
+            'accent_blue': '#4f7b9f',       # Pastel blue
+            'accent_green': '#68b784',      # Pastel green
+            'accent_orange': '#e6935c',     # Pastel orange
+            'accent_red': '#e85f5c',        # Pastel red
+            'accent_yellow': '#e8c15c',     # Pastel yellow
+            'accent_purple': '#b784a7',     # Pastel purple
+            'accent_cyan': '#5cbbe8',       # Pastel cyan
+        }
+
+        self.root.title("HVAC System - Compact SCADA HMI")
+        self.root.configure(bg=colors['bg_dark'])
+
+        # --- HEADER ---
+        header = tk.Frame(self.root, bg=colors['bg_darker'], bd=2, relief='groove')
+        header.grid(row=0, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
+        
+        self.status_label = tk.Label(header, text="SYSTEM STOPPED", font=("Arial", 18, "bold"), 
+                                   fg=colors['accent_blue'], bg=colors['bg_darker'])
+        self.status_label.grid(row=0, column=0, padx=10, pady=5, sticky='w')
+        
+        # Control buttons with updated colors
+        self.start_btn = tk.Button(header, text="START", width=8, command=self.start_system,
+                                 font=("Arial", 11, "bold"), bg=colors['accent_green'], 
+                                 fg=colors['text_light'], activebackground=colors['bg_darker'])
+        self.start_btn.grid(row=0, column=1, padx=5)
+        
+        self.stop_btn = tk.Button(header, text="STOP", width=8, command=self.stop_system,
+                                font=("Arial", 11, "bold"), bg=colors['bg_darker'], 
+                                fg=colors['text_light'], activebackground=colors['bg_dark'])
+        self.stop_btn.grid(row=0, column=2, padx=5)
+        
+        self.emergency_btn = tk.Button(header, text="E-STOP", width=8, command=self.emergency_stop,
+                                     font=("Arial", 11, "bold"), bg=colors['accent_red'], 
+                                     fg=colors['text_light'], activebackground=colors['bg_darker'])
         self.emergency_btn.grid(row=0, column=3, padx=5)
-        # Setpoints & Ambience
-        tk.Label(frame_set, text="Ambience Temp (°C):", font=("Arial", 11)).grid(row=0, column=0, sticky='e')
-        amb_entry = tk.Entry(frame_set, textvariable=self.vars['amb_temp'], width=6)
+
+        # --- TOP SUMMARY ---
+        summary = tk.Frame(self.root, bg=colors['bg_darker'], bd=2, relief='groove')
+        summary.grid(row=1, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
+        
+        summary_labels = [
+            ("Mode", self.vars['mode'], colors['accent_green']),
+            ("MAT", self.vars['MAT'], colors['accent_cyan']),
+            ("SAT", self.vars['SAT'], colors['accent_cyan']),
+            ("Fan RPM", self.vars['fan_rpm'], colors['accent_purple']),
+            ("Coil Temp", self.vars['coil_temp'], colors['accent_orange']),
+        ]
+        
+        for i, (lbl, var, color) in enumerate(summary_labels):
+            tk.Label(summary, text=lbl, font=("Arial", 10, "bold"), 
+                    bg=colors['bg_darker'], fg=colors['text_light']).grid(row=0, column=i*2, padx=5, sticky='e')
+            tk.Label(summary, textvariable=var, font=("Arial", 10, "bold"), 
+                    fg=color, bg=colors['bg_darker']).grid(row=0, column=i*2+1, padx=5, sticky='w')
+
+        # --- MAIN BODY ---
+        body = tk.Frame(self.root, bg=colors['bg_dark'])
+        body.grid(row=2, column=0, sticky='nsew', padx=2, pady=2)
+        self.root.grid_rowconfigure(2, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        # Left panel
+        left = tk.Frame(body, bg=colors['bg_dark'])
+        left.grid(row=0, column=0, sticky='nsw', padx=2, pady=2)
+
+        # Components section
+        comp = tk.LabelFrame(left, text="Components", font=("Arial", 11, "bold"), 
+                           bg=colors['bg_darker'], fg=colors['text_light'])
+        comp.grid(row=0, column=0, sticky='ew', padx=2, pady=2)
+
+        # Zones
+        tk.Label(comp, text="- Zones", font=("Arial", 10, "bold"), 
+                bg=colors['bg_darker'], fg=colors['text_light']).grid(row=0, column=0, sticky='w')
+        
+        for i in range(3):
+            tk.Label(comp, text=f"   Zone {i+1} Temp", font=("Arial", 10), 
+                    bg=colors['bg_darker'], fg=colors['text_dim']).grid(row=i+1, column=0, sticky='w')
+            tk.Label(comp, textvariable=self.vars[f'Z{i+1}T'], font=("Arial", 10, "bold"), 
+                    bg=colors['bg_darker'], fg=colors['accent_orange']).grid(row=i+1, column=1, sticky='w')
+            tk.Label(comp, text=f"   Zone {i+1} CO₂", font=("Arial", 10), 
+                    bg=colors['bg_darker'], fg=colors['text_dim']).grid(row=i+1, column=2, sticky='w')
+            tk.Label(comp, textvariable=self.vars[f'CO2_{i+1}'], font=("Arial", 10, "bold"), 
+                    bg=colors['bg_darker'], fg=colors['accent_yellow']).grid(row=i+1, column=3, sticky='w')
+
+        # Actuators
+        tk.Label(comp, text="- Actuators", font=("Arial", 10, "bold"), 
+                bg=colors['bg_darker'], fg=colors['text_light']).grid(row=5, column=0, sticky='w')
+        
+        actuators = [
+            ("Supply Fan (Cooling)", 'SF_Cool', '#5cbbe8'),  # cyan
+            ("Supply Fan (Heating)", 'SF_Heat', '#e6935c'),  # orange
+            ("Return Fan", 'RF', '#4f7b9f'),                 # blue
+            ("Cooling Coil Valve", 'CC_A', '#5cbbe8'),       # cyan
+            ("Heating Coil Valve", 'HC_A', '#e85f5c'),       # red
+            ("Alarm", 'alarm', '#ff4444'),                   # bright red
+        ]
+        
+        self.led_indicators = {}
+        for i, (label, varname, color) in enumerate(actuators):
+            tk.Label(comp, text=f"   {label}", font=("Arial", 10), 
+                    bg=colors['bg_darker'], fg=colors['text_dim']).grid(row=6+i, column=0, sticky='w')
+            
+            led = LEDIndicator(comp, size=15, color_on=color, bg=colors['bg_darker'])
+            led.grid(row=6+i, column=1, sticky='w', padx=5)
+            self.led_indicators[varname] = led
+            
+            tk.Label(comp, textvariable=self.vars[varname], font=("Arial", 10, "bold"), 
+                    bg=colors['bg_darker'], fg=color).grid(row=6+i, column=2, sticky='w')
+
+        # Setpoints section
+        setp = tk.LabelFrame(left, text="Setpoint & Ambience", font=("Arial", 11, "bold"), 
+                           bg=colors['bg_darker'], fg=colors['text_light'])
+        setp.grid(row=1, column=0, sticky='ew', padx=2, pady=2)
+        
+        tk.Label(setp, text="Ambience Temp (°C):", font=("Arial", 10), 
+                bg=colors['bg_darker'], fg=colors['text_dim']).grid(row=0, column=0, sticky='e')
+        amb_entry = tk.Entry(setp, textvariable=self.vars['amb_temp'], width=6, 
+                           font=("Arial", 10, "bold"), bg=colors['bg_dark'], 
+                           fg=colors['text_light'], insertbackground=colors['text_light'])
         amb_entry.grid(row=0, column=1, sticky='w')
         amb_entry.bind('<KeyRelease>', lambda e: self._realtime_amb_update())
-        tk.Label(frame_set, text="Zone Setpoint (°C):", font=("Arial", 11)).grid(row=1, column=0, sticky='e')
-        set_entry = tk.Entry(frame_set, textvariable=self.vars['setpoint'], width=6)
+
+        tk.Label(setp, text="Zone Setpoint (°C):", font=("Arial", 10), 
+                bg=colors['bg_darker'], fg=colors['text_dim']).grid(row=1, column=0, sticky='e')
+        set_entry = tk.Entry(setp, textvariable=self.vars['setpoint'], width=6, 
+                           font=("Arial", 10, "bold"), bg=colors['bg_dark'], 
+                           fg=colors['text_light'], insertbackground=colors['text_light'])
         set_entry.grid(row=1, column=1, sticky='w')
         set_entry.bind('<KeyRelease>', lambda e: self._realtime_setpoint_update())
-        tk.Button(frame_set, text="Apply", width=10, command=self.apply_setpoints).grid(row=0, column=2, rowspan=2, padx=10)
+
+        tk.Button(setp, text="Apply", width=10, command=self.apply_setpoints, 
+                 font=("Arial", 10, "bold"), bg=colors['accent_blue'], 
+                 fg=colors['text_light'], activebackground=colors['bg_darker']).grid(row=0, column=2, rowspan=2, padx=10)
+
+        # System Alarms section
+        alarms = tk.LabelFrame(left, text="System Alarms", font=("Arial", 11, "bold"), 
+                             bg=colors['bg_darker'], fg=colors['text_light'])
+        alarms.grid(row=2, column=0, sticky='ew', padx=2, pady=2)
+        
+        alarm_list = [
+            "Emergency Stop", "Low Temp", "High Temp", "CO2 High", "Fan Fault", "General Alarm"
+        ]
+        
+        for i, alarm in enumerate(alarm_list):
+            tk.Checkbutton(alarms, text=alarm, font=("Arial", 10), 
+                         bg=colors['bg_darker'], fg=colors['text_dim'], 
+                         selectcolor=colors['bg_dark'], state='disabled').grid(row=i, column=0, sticky='w')
+        
+        tk.Label(alarms, text="Active: None", font=("Arial", 10, "italic"), 
+                fg=colors['accent_green'], bg=colors['bg_darker']).grid(row=len(alarm_list), column=0, sticky='w')
+
+        # Process Diagram
+        diagram = tk.LabelFrame(body, text="Process Diagram", font=("Arial", 11, "bold"), 
+                              bg=colors['bg_darker'], fg=colors['text_light'])
+        diagram.grid(row=0, column=1, sticky='nsew', padx=2, pady=2)        # Load and display HVAC diagram
+        img = tk.PhotoImage(file="HVAC.png")
+        img_label = tk.Label(diagram, image=img, bg=colors['bg_darker'])
+        img_label.image = img  # Keep a reference to prevent garbage collection
+        img_label.pack(expand=True, fill='both', padx=20, pady=20)
+
+        # Trends section
+        trends = tk.LabelFrame(self.root, text="Real-Time Trends", font=("Arial", 11, "bold"), 
+                             bg=colors['bg_darker'], fg=colors['accent_cyan'])
+        trends.grid(row=3, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
+        tk.Label(trends, text="[Trend Graphs Placeholder]", font=("Arial", 12, "italic"), 
+                bg=colors['bg_darker'], fg=colors['text_dim']).pack(expand=True, fill='both', padx=20, pady=20)
+
+        # Demo Controls
+        demo = tk.Frame(self.root, bg=colors['bg_dark'])
+        demo.grid(row=4, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
+        tk.Label(demo, text="Demo Controls:", font=("Arial", 10, "bold"), 
+                bg=colors['bg_dark'], fg=colors['text_light']).pack(side='left', padx=5)
+        
+        btns = [
+            ("Normal Operation", colors['accent_green']),
+            ("Pressure Variations", colors['accent_blue']),
+            ("Temp Setpoint Changes", colors['accent_purple']),
+            ("Mixed Scenario", colors['accent_yellow']),
+            ("Stop Demo", colors['accent_red']),
+        ]
+        
+        for txt, color in btns:
+            tk.Button(demo, text=txt, font=("Arial", 10, "bold"), bg=color, 
+                     fg=colors['bg_dark'], width=16, state='disabled').pack(side='left', padx=2)
 
     def apply_setpoints(self):
         try:
@@ -116,6 +269,15 @@ class HVACScadaGUI:
         self.vars['alarm'].set('YES' if s['alarm'] else 'NO')
         self.vars['amb_temp'].set(f"{getattr(self.system, 'amb_temp', 28.0):.1f}")
         self.vars['setpoint'].set(f"{self.system.temp_setpoint:.1f}")
+        
+        # Update LED indicators
+        self.led_indicators['SF_Cool'].set_state(s['SF_Cool'])
+        self.led_indicators['SF_Heat'].set_state(s['SF_Heat'])
+        self.led_indicators['RF'].set_state(s['RF'])
+        self.led_indicators['CC_A'].set_state(s['CC_A'])
+        self.led_indicators['HC_A'].set_state(s['HC_A'])
+        self.led_indicators['alarm'].set_state(s['alarm'])
+        
         self.root.update()
 
     def start_system(self):
