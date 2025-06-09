@@ -294,14 +294,21 @@ class HVACScadaGUI:
         status_text = s['system_status']
         if status_text == 'RUNNING':
             self.status_label.config(text="SYSTEM RUNNING", fg=self.colors['accent_green'])
-        elif status_text == 'OFF':
-            self.status_label.config(text="SYSTEM STOPPED", fg=self.colors['accent_blue'])
-        elif status_text == 'EMERGENCY':
-            self.status_label.config(text="EMERGENCY STOP", fg=self.colors['accent_red'])
+            # Only update LEDs if system is running
+            self.led_indicators['SF_Cool'].set_state(s['SF_Cool'])
+            self.led_indicators['SF_Heat'].set_state(s['SF_Heat'])
+            self.led_indicators['RF'].set_state(s['RF'])
+            self.led_indicators['CC_A'].set_state(s['CC_A'])
+            self.led_indicators['HC_A'].set_state(s['HC_A'])
         else:
-            self.status_label.config(text=f"SYSTEM {status_text}", fg=self.colors['accent_orange'])
+            # Turn off all LEDs except alarm when system is not running
+            for key in self.led_indicators:
+                if key != 'alarm':
+                    self.led_indicators[key].set_state(False)
+        
+        # Alarm LED is handled separately as it can be active in any state
+        self.led_indicators['alarm'].set_state(s['alarm'])
 
-        # Rest of update function
         self.vars['mode'].set(s['mode'].title())
         self.vars['MAT'].set(f"{s['MAT']:.1f} °C")
         self.vars['SAT'].set(f"{s['SAT']:.1f} °C")
@@ -321,14 +328,6 @@ class HVACScadaGUI:
         self.vars['alarm'].set('YES' if s['alarm'] else 'NO')
         self.vars['amb_temp'].set(f"{getattr(self.system, 'amb_temp', 28.0):.1f}")
         self.vars['setpoint'].set(f"{self.system.temp_setpoint:.1f}")
-        
-        # Update LED indicators
-        self.led_indicators['SF_Cool'].set_state(s['SF_Cool'])
-        self.led_indicators['SF_Heat'].set_state(s['SF_Heat'])
-        self.led_indicators['RF'].set_state(s['RF'])
-        self.led_indicators['CC_A'].set_state(s['CC_A'])
-        self.led_indicators['HC_A'].set_state(s['HC_A'])
-        self.led_indicators['alarm'].set_state(s['alarm'])
         
         # --- Update trend data ---
         current_time = time.time() - self.start_time
@@ -362,6 +361,12 @@ class HVACScadaGUI:
         self.system.stop()
         self._running = False
         self.status_label.config(text="SYSTEM STOPPED", fg=self.colors['accent_blue'])
+        
+        # Turn off all LEDs except alarm
+        for key in self.led_indicators:
+            if key != 'alarm':
+                self.led_indicators[key].set_state(False)
+
         # Reset all HMI display variables to initial values
         self.vars['system_status'].set('OFF')
         self.vars['mode'].set('Cooling')
