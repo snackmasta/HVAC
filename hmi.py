@@ -229,24 +229,6 @@ class HVACScadaGUI:
         tk.Label(trends, text="[Trend Graphs Placeholder]", font=("Arial", 12, "italic"), 
                 bg=colors['bg_darker'], fg=colors['text_dim']).pack(expand=True, fill='both', padx=20, pady=20)
 
-        # Demo Controls
-        demo = tk.Frame(self.root, bg=colors['bg_dark'])
-        demo.grid(row=4, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
-        tk.Label(demo, text="Demo Controls:", font=("Arial", 10, "bold"), 
-                bg=colors['bg_dark'], fg=colors['text_light']).pack(side='left', padx=5)
-        
-        btns = [
-            ("Normal Operation", colors['accent_green']),
-            ("Pressure Variations", colors['accent_blue']),
-            ("Temp Setpoint Changes", colors['accent_purple']),
-            ("Mixed Scenario", colors['accent_yellow']),
-            ("Stop Demo", colors['accent_red']),
-        ]
-        
-        for txt, color in btns:
-            tk.Button(demo, text=txt, font=("Arial", 10, "bold"), bg=color, 
-                     fg=colors['bg_dark'], width=16, state='disabled').pack(side='left', padx=2)
-
     def apply_setpoints(self):
         try:
             amb = float(self.vars['amb_temp'].get())
