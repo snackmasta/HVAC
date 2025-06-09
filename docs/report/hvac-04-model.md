@@ -64,9 +64,91 @@ Model sistem HVAC ini menyediakan framework dasar untuk memahami prinsip operasi
 
 ## 4.5 Lampiran: Flowchart dan Arsitektur Sistem HVAC
 
-Model sistem HVAC divisualisasikan melalui berbagai jenis diagram yang masing-masing memberikan perspektif berbeda terhadap sistem. Setiap flowchart dirancang untuk menjelaskan aspek spesifik dari sistem HVAC, mulai dari alur proses fisik hingga logika kontrol yang kompleks.
+### 4.5.1 Diagram Arsitektur Sistem HVAC (Single Duct, Multiple Zone, VAV)
 
-### 4.5.1 Analisis Flowchart Proses dan Kontrol
+Diagram berikut menggambarkan arsitektur sistem HVAC single duct, multiple zone, VAV, termasuk heating coil dan supply fan terpisah:
+
+```mermaid
+flowchart LR
+    OA["Outside Air"]
+    RA["Return Air"]
+    EA["Exhaust Air"]
+    Mixing["Mixing Box"]
+    CC["Cooling Coil (CC)"]
+    SF_Cool["Supply Fan (Cooling)"]
+    HC["Heating Coil (HC)"]
+    SF_Heat["Supply Fan (Heating)"]
+    SD["Supply Duct"]
+    VAV1["VAV Unit (Zone 1)"]
+    VAV2["VAV Unit (Zone 2)"]
+    VAV3["VAV Unit (Zone 3)"]
+    Z1["Zone 1"]
+    Z2["Zone 2"]
+    Z3["Zone 3"]
+    RD["Return Duct"]
+    RF["Return Fan"]
+
+    OA --> Mixing
+    RA --> Mixing
+    Mixing --> CC --> SF_Cool
+    Mixing --> HC --> SF_Heat
+    SF_Cool --> SD
+    SF_Heat --> SD
+    SD --> VAV1 --> Z1
+    SD --> VAV2 --> Z2
+    SD --> VAV3 --> Z3
+    Z1 --> RD
+    Z2 --> RD
+    Z3 --> RD
+    RD --> RF
+    RF --> RA
+    RF --> EA
+```
+
+### 4.5.2 Flowchart Proses dan Kontrol
+
+Diagram berikut menggambarkan flowchart proses dan kontrol utama sistem HVAC:
+
+```mermaid
+flowchart TD
+    Start([System Start])
+    Mixing["Mix Outside & Return Air"]
+    ModeSelect{Cooling or Heating?}
+    CC["Cool Mixed Air"]
+    SF_Cool["Supply Fan (Cooling) ON"]
+    HC["Heat Mixed Air"]
+    SF_Heat["Supply Fan (Heating) ON"]
+    ForEachZone{For Each Zone}
+    VAVCheck["Read Zone Temp/Humidity"]
+    SetpointCheck{Setpoint Met?}
+    VAVAdjust["Adjust VAV Position"]
+    FanAdjust["Adjust Supply Fan Speed"]
+    FaultCheck{Fault Detected?}
+    Alarm["Raise Alarm"]
+    Continue["Continue Monitoring"]
+    RD["Return Duct"]
+    RF["Return Fan"]
+    EA["Exhaust Air"]
+    End([System End])
+
+    Start --> Mixing --> ModeSelect
+    ModeSelect -- Cooling --> CC --> SF_Cool --> ForEachZone
+    ModeSelect -- Heating --> HC --> SF_Heat --> ForEachZone
+    ForEachZone --> VAVCheck --> SetpointCheck
+    SetpointCheck -- No --> VAVAdjust --> FanAdjust --> VAVCheck
+    SetpointCheck -- Yes --> Continue --> VAVCheck
+    VAVCheck --> FaultCheck
+    FaultCheck -- Yes --> Alarm --> End
+    FaultCheck -- No --> Continue
+    ForEachZone --> RD
+    RD --> RF --> EA
+    RF --> Mixing
+    EA --> End
+```
+
+Penjelasan detail dan diagram lain dapat dilihat pada lampiran atau file architecture.md dan hvac-flowchart.md.
+
+### 4.5.3 Analisis Flowchart Proses dan Kontrol
 
 Flowchart pertama menggambarkan arsitektur sistem simulasi dengan fokus pada alur proses dasar dan sistem kontrol sederhana. Diagram ini menggunakan layout elk untuk optimasi visual dan memudahkan pemahaman alur proses simulasi.
 
@@ -74,7 +156,7 @@ Alur proses utama divisualisasikan dimulai dari titik START yang ditandai dengan
 
 Layer instrumentasi terdiri dari tiga komponen utama dalam simulasi. Sensor layer mencakup tujuh transmitter utama yang disimulasikan untuk monitoring parameter seperti flow, pressure, level, dan turbidity. Controller layer berupa logika kontrol Python yang memproses data simulasi dan membuat keputusan kontrol sederhana. Actuator layer terdiri dari sepuluh komponen yang dikendalikan oleh logika kontrol untuk eksekusi dalam simulasi.
 
-### 4.5.2 Flowchart Algoritma Logika Kontrol
+### 4.5.4 Flowchart Algoritma Logika Kontrol
 
 Diagram kedua menyajikan decision tree sederhana yang digunakan sistem kontrol untuk mengendalikan simulasi secara otomatis. Algoritma ini menerapkan pendekatan sequential logic dengan safety checkpoints dasar.
 
@@ -82,13 +164,13 @@ Start-up sequence dimulai dengan system initialization yang melakukan verifikasi
 
 Safety interlocks terintegrasi di setiap decision point dengan alarm pathway yang akan menghentikan sistem dan memberikan notifikasi kepada operator ketika terjadi kondisi parameter di luar batas normal dalam simulasi.
 
-### 4.5.3 Hardware Siteplan
+### 4.5.5 Hardware Siteplan
 
 Diagram ketiga memberikan perspektif layout sistem simulasi, menunjukkan hubungan spatial antar komponen dalam representasi visual yang sederhana untuk tujuan pembelajaran.
 
 Linear flow arrangement diterapkan untuk mempermudah pemahaman alur proses dalam simulasi. Color coding system diimplementasikan untuk memudahkan identifikasi komponen. Warna biru digunakan untuk intake, hijau untuk pre-treatment, kuning untuk proses pendinginan, merah muda untuk pemanasan, abu-abu untuk storage, dan ungu untuk pump equipment.
 
-### 4.5.4 Flowchart Model: Fungsi dan Hubungan PLC dalam Sistem HVAC
+### 4.5.6 Flowchart Model: Fungsi dan Hubungan PLC dalam Sistem HVAC
 
 Diagram keempat memberikan detailed view terhadap control logic architecture dengan mapping sederhana antara inputs, processing logic, dan outputs dalam sistem simulasi.
 
@@ -96,7 +178,7 @@ Sistem kontrol menjalankan sembilan fungsi logika utama yang masing-masing memil
 
 Sistem mengimplementasikan multiple control loops sederhana yang bekerja dalam simulasi. Flow control loops mengatur simulasi laju aliran antar unit. Pressure control loops mempertahankan simulasi tekanan operasi. Level control loops melakukan simulasi inventory management di storage tanks. Quality control loops melakukan monitoring parameter kualitas dasar dalam simulasi.
 
-### 4.5.5 Flowchart Model: Algoritma Logika Kontrol
+### 4.5.7 Flowchart Model: Algoritma Logika Kontrol
 
 Diagram terakhir menunjukkan refined control algorithm dengan visual clarity dan decision-making capabilities sederhana. Start node yang ditandai dengan warna hijau dan Stop nodes dengan warna merah memberikan clear indication terhadap system states dan transitions dalam simulasi.
 
