@@ -3,6 +3,10 @@ import threading
 import time
 from hvac_sim import HVACSystem
 from PIL import Image, ImageTk
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections import deque
 
 class LEDIndicator(tk.Canvas):
     def __init__(self, parent, size=15, color_on='#22ff22', color_off='#444444', **kwargs):
@@ -35,6 +39,17 @@ class HVACScadaGUI:
             'Z1T','Z2T','Z3T','CO2_1','CO2_2','CO2_3',
             'VAV1A','VAV2A','VAV3A','SF_Cool','SF_Heat','RF','CC_A','HC_A','alarm',
             'amb_temp','setpoint','fan_rpm','coil_temp']}
+        
+        # Trend data storage
+        self.max_trend_points = 120  # 60 seconds at 0.5s update rate
+        self.trend_data = {
+            'time': deque(maxlen=self.max_trend_points),
+            'zone1_temp': deque(maxlen=self.max_trend_points),
+            'zone2_temp': deque(maxlen=self.max_trend_points),
+            'zone3_temp': deque(maxlen=self.max_trend_points)
+        }
+        self.start_time = time.time()
+        
         self._build_gui()
         self._running = False
 
@@ -222,12 +237,47 @@ class HVACScadaGUI:
         img_label.image = photo_img  # Keep a reference
         img_label.pack(expand=True, fill='both', padx=10, pady=10)
 
-        # Trends section
-        trends = tk.LabelFrame(self.root, text="Real-Time Trends", font=("Arial", 11, "bold"), 
+        # Trends section - make it smaller
+        trends = tk.LabelFrame(self.root, text="Real-Time Trends", font=("Arial", 9, "bold"), 
                              bg=colors['bg_darker'], fg=colors['accent_cyan'])
         trends.grid(row=3, column=0, columnspan=2, sticky='ew', padx=2, pady=2)
-        tk.Label(trends, text="[Trend Graphs Placeholder]", font=("Arial", 12, "italic"), 
-                bg=colors['bg_darker'], fg=colors['text_dim']).pack(expand=True, fill='both', padx=20, pady=20)
+
+        # --- Matplotlib Figure for Trends ---
+        # Reduce figure size and make it more compact
+        self.fig = Figure(figsize=(8, 2), dpi=100, facecolor=colors['bg_darker'])
+        self.fig.patch.set_facecolor(colors['bg_darker'])
+        self.canvas = FigureCanvasTkAgg(self.fig, master=trends)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+        # Initialize trend plots side by side
+        self.ax1 = self.fig.add_subplot(131, label='Zone 1 Temp', facecolor=colors['bg_darker'])
+        self.ax2 = self.fig.add_subplot(132, label='Zone 2 Temp', facecolor=colors['bg_darker'])
+        self.ax3 = self.fig.add_subplot(133, label='Zone 3 Temp', facecolor=colors['bg_darker'])
+        
+        # Adjust subplot parameters for better spacing
+        self.fig.subplots_adjust(wspace=0.3, bottom=0.2)
+
+        for ax in [self.ax1, self.ax2, self.ax3]:
+            ax.set_facecolor(colors['bg_darker'])
+            ax.tick_params(axis='x', colors=colors['text_light'], labelsize=8)
+            ax.tick_params(axis='y', colors=colors['text_light'], labelsize=8)
+            ax.spines['bottom'].set_color(colors['text_light'])
+            ax.spines['top'].set_color(colors['text_light'])
+            ax.spines['right'].set_color(colors['text_light'])
+            ax.spines['left'].set_color(colors['text_light'])
+
+        # Initial empty plots
+        self.line1, = self.ax1.plot([], [], color=colors['accent_cyan'], lw=2)
+        self.line2, = self.ax2.plot([], [], color=colors['accent_cyan'], lw=2)
+        self.line3, = self.ax3.plot([], [], color=colors['accent_cyan'], lw=2)
+
+        # Set axis labels
+        self.ax1.set_ylabel("Temp (°C)", color=colors['text_light'])
+        self.ax2.set_ylabel("Temp (°C)", color=colors['text_light'])
+        self.ax3.set_ylabel("Temp (°C)", color=colors['text_light'])
+        self.ax3.set_xlabel("Time (s)", color=colors['text_light'])
+
+        # --- End Matplotlib Figure ---
 
     def apply_setpoints(self):
         try:
@@ -268,6 +318,25 @@ class HVACScadaGUI:
         self.led_indicators['CC_A'].set_state(s['CC_A'])
         self.led_indicators['HC_A'].set_state(s['HC_A'])
         self.led_indicators['alarm'].set_state(s['alarm'])
+        
+        # --- Update trend data ---
+        current_time = time.time() - self.start_time
+        self.trend_data['time'].append(current_time)
+        self.trend_data['zone1_temp'].append(s['ZoneTemps'][0])
+        self.trend_data['zone2_temp'].append(s['ZoneTemps'][1])
+        self.trend_data['zone3_temp'].append(s['ZoneTemps'][2])
+        
+        # Update trend plots
+        self.line1.set_data(self.trend_data['time'], self.trend_data['zone1_temp'])
+        self.line2.set_data(self.trend_data['time'], self.trend_data['zone2_temp'])
+        self.line3.set_data(self.trend_data['time'], self.trend_data['zone3_temp'])
+        
+        for ax in [self.ax1, self.ax2, self.ax3]:
+            ax.relim()
+            ax.autoscale_view()
+        
+        self.canvas.draw_idle()
+        # --- End trend update ---
         
         self.root.update()
 
