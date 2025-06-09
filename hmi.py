@@ -2,6 +2,7 @@ import tkinter as tk
 import threading
 import time
 from hvac_sim import HVACSystem
+from PIL import Image, ImageTk
 
 class LEDIndicator(tk.Canvas):
     def __init__(self, parent, size=15, color_on='#22ff22', color_off='#444444', **kwargs):
@@ -207,11 +208,19 @@ class HVACScadaGUI:
         # Process Diagram
         diagram = tk.LabelFrame(body, text="Process Diagram", font=("Arial", 11, "bold"), 
                               bg=colors['bg_darker'], fg=colors['text_light'])
-        diagram.grid(row=0, column=1, sticky='nsew', padx=2, pady=2)        # Load and display HVAC diagram
-        img = tk.PhotoImage(file="HVAC.png")
-        img_label = tk.Label(diagram, image=img, bg=colors['bg_darker'])
-        img_label.image = img  # Keep a reference to prevent garbage collection
-        img_label.pack(expand=True, fill='both', padx=20, pady=20)
+        diagram.grid(row=0, column=1, sticky='nsew', padx=2, pady=2)
+
+        # Load and resize image
+        img = Image.open("HVAC.png")
+        # Set desired dimensions - adjust these values as needed
+        desired_width = 800
+        desired_height = 600
+        img = img.resize((desired_width, desired_height), Image.Resampling.LANCZOS)
+        photo_img = ImageTk.PhotoImage(img)
+
+        img_label = tk.Label(diagram, image=photo_img, bg=colors['bg_darker'])
+        img_label.image = photo_img  # Keep a reference
+        img_label.pack(expand=True, fill='both', padx=10, pady=10)
 
         # Trends section
         trends = tk.LabelFrame(self.root, text="Real-Time Trends", font=("Arial", 11, "bold"), 
