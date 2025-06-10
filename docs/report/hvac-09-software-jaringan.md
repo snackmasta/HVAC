@@ -1,103 +1,71 @@
 # 9. Perangkat Lunak Jaringan Kendali HVAC
 
-Perangkat lunak jaringan kendali HVAC terdiri dari:
-- **PLC Program**: Logika kontrol utama (Structured Text/ladder) untuk mengatur urutan operasi, safety, dan fault handling.
-- **HMI/SCADA**: Antarmuka operator berbasis software (misal: Python Tkinter, WinCC, Wonderware) untuk monitoring status, alarm, dan kontrol manual.
-- **Komunikasi**: Protokol komunikasi industri (Modbus, Ethernet/IP) untuk pertukaran data antara PLC, HMI, dan perangkat lain.
-- **Simulasi**: Program simulasi (misal: Python) untuk pengujian logika dan visualisasi proses sebelum implementasi fisik.
-- **Data Logging**: Fitur pencatatan data proses untuk analisis dan troubleshooting.
+Perangkat lunak jaringan kendali HVAC dikembangkan menggunakan bahasa Python, dengan arsitektur modular yang terdiri dari beberapa komponen utama:
+- **Program Kontrol (Python)**: Logika kontrol utama diimplementasikan dalam Python, menggantikan ladder/structured text PLC, untuk mengatur urutan operasi, safety, dan fault handling.
+- **HMI/SCADA**: Antarmuka operator berbasis Python Tkinter, digunakan untuk monitoring status sistem, alarm, dan kontrol manual perangkat HVAC.
+- **Komunikasi**: Protokol komunikasi Modbus TCP/IP digunakan untuk pertukaran data antara modul kontrol Python, HMI, dan perangkat eksternal (jika ada).
+- **Simulasi (Python)**:  
+  Salah satu keunggulan utama pengembangan perangkat lunak HVAC ini adalah adanya modul simulasi berbasis Python. Modul simulasi ini memungkinkan seluruh logika kontrol, interaksi sensor, aktuator, serta respon sistem dapat diuji secara virtual sebelum implementasi fisik.  
+  Simulasi dilakukan dengan membuat model digital dari seluruh perangkat (sensor, pompa, valve, alarm) dan lingkungan proses (misal: perubahan level, tekanan, dan kualitas air). Operator dapat mengatur nilai input sensor secara manual atau otomatis, lalu mengamati bagaimana sistem kontrol merespons kondisi tersebut.  
+  Dengan simulasi Python, tim pengembang dapat:
+  - Menguji dan memverifikasi algoritma kontrol tanpa risiko terhadap perangkat nyata.
+  - Melatih operator menggunakan HMI virtual.
+  - Melakukan troubleshooting dan analisis skenario kegagalan (fault simulation).
+  - Mempercepat iterasi pengembangan, karena perubahan kode dapat langsung diuji pada lingkungan simulasi.
+  - Menyediakan visualisasi proses secara real-time, sehingga memudahkan pemahaman alur kerja sistem HVAC.
+  Simulasi ini juga terintegrasi dengan fitur data logging dan alarm, sehingga seluruh kejadian selama simulasi dapat dicatat dan dianalisis.
+- **Data Logging**: Fitur pencatatan data proses (level, tekanan, alarm, status aktuator) untuk analisis performa dan troubleshooting.
 
 ## 9.1 Lampiran: Control System Plan and I/O Table
 
 ### 9.1.1 Control Philosophy
-- The system is fully automated with manual override for all pumps and valves.
-- Main control logic is based on air levels, flow, pressure, and turbidity.
-- Alarms are generated for abnormal conditions (low/high level, high turbidity, low pressure, etc.).
-- All critical parameters are monitored and logged.
-- Local HMI/SCADA for operator interface; remote monitoring optional.
-- **Architecture Update:** The system now uses a modular process and control architecture, with clear separation of sensors, logic, and actuators as shown in the updated flowcharts. PLC/SCADA or software logic group handles all process decisions and actuator commands.
+- Sistem HVAC Python berjalan otomatis penuh, dengan opsi override manual untuk semua pompa dan valve melalui HMI.
+- Logika kontrol utama berbasis pembacaan sensor (level, flow, pressure, turbidity) yang diolah secara real-time.
+- Alarm dihasilkan secara otomatis jika terjadi kondisi abnormal (misal: level rendah/tinggi, tekanan rendah, turbidity tinggi).
+- Semua parameter kritis dimonitor dan dicatat ke file log.
+- HMI lokal berbasis Tkinter untuk operator; pemantauan jarak jauh dapat diaktifkan jika diperlukan.
+- **Pembaruan Arsitektur:** Pemisahan tegas antara sensor, logika, dan aktuator diimplementasikan dalam struktur kode Python, sesuai flowchart terbaru.
 
 ### 9.1.2 Main Control Logic
-- **Intake Fan**: Starts if pre-treatment and HVAC are ready, stops on low ground tank level or alarm.
-- **Pre-treatment**: Backwash cycle triggered by high differential pressure or timer.
-- **HVAC High-Pressure Pump**: Starts if pre-treatment is OK and ground tank has sufficient level; stops on low pressure, high pressure, or low ground tank level.
-- **Post-treatment**: Disinfection runs in parallel with HVAC output.
-- **Transfer Pump to Roof Tank**: Starts if roof tank is not full and ground tank has air; stops if roof tank is full or ground tank is low.
-- **Alarms**: Any abnormal sensor reading triggers alarm and can stop relevant equipment.
-- **Architecture Update:** Logic is now explicitly mapped from sensors to logic functions to actuators, as per the new flowcharts. All sensor values are routed to a central logic group (PLC or software), which then controls actuators.
+- **Intake Fan**: Aktif jika pre-treatment dan sistem HVAC siap, nonaktif jika level ground tank rendah atau alarm aktif.
+- **Pre-treatment**: Siklus backwash otomatis berdasarkan tekanan diferensial atau timer.
+- **HVAC High-Pressure Pump**: Aktif jika pre-treatment OK dan level ground tank cukup; nonaktif jika tekanan rendah/tinggi atau level ground tank rendah.
+- **Post-treatment**: Disinfeksi berjalan paralel dengan output HVAC.
+- **Transfer Pump to Roof Tank**: Aktif jika roof tank belum penuh dan ground tank masih ada air; nonaktif jika roof tank penuh atau ground tank rendah.
+- **Alarm**: Setiap pembacaan sensor abnormal akan memicu alarm dan dapat menghentikan perangkat terkait.
+- **Pemetaan Logika:** Semua nilai sensor dikirim ke modul logika Python, yang kemudian mengontrol aktuator sesuai algoritma.
 
 ### 9.1.3 I/O Table
-| Tag/Name                | Type      | Description                                 | Location                | PLC Variable    | HMI Display |
-|-------------------------|-----------|---------------------------------------------|-------------------------|-----------------|-------------|
-| LT-101                  | AI        | Ground Tank Level Transmitter               | Ground Tank             | LT_101          | ground      |
-| LT-102                  | AI        | Roof Tank Level Transmitter                 | Roof Tank               | LT_102          | roof        |
-| FT-101                  | AI        | Intake Flow Transmitter                     | Intake Line             | FT_101          | (not displayed) |
-| FT-102                  | AI        | HVAC Output Flow Transmitter                | HVAC Outlet             | FT_102          | (not displayed) |
-| PT-101                  | AI        | HVAC Feed Pressure Transmitter              | HVAC Feed               | PT_101          | press       |
-| PT-102                  | AI        | HVAC Output Pressure Transmitter            | HVAC Outlet             | PT_102          | (not displayed) |
-| TU-101                  | AI        | Pre-treatment Turbidity Sensor              | Pre-treatment Outlet    | TU_101          | turb        |
-| P-101                   | DO        | Intake Fan Start/Stop                       | Intake                  | P_101           | intake      |
-| P-102                   | DO        | HVAC High-Pressure Pump Start/Stop          | HVAC Feed               | P_102           | hvac        |
-| P-103                   | DO        | Post-treatment Pump Start/Stop              | Post-treatment          | P_103           | p103        |
-| P-104                   | DO        | Transfer Pump to Ground Tank                | Post-treatment          | P_104           | p104        |
-| P-105                   | DO        | Pump to Rooftop                             | Pump Room               | P_105           | p105        |
-| P-106                   | DO        | Transfer Pump to Roof Tank                  | Pump Room               | P_106           | p106        |
-| V-101                   | DO        | Motorized Valve (Primary)                   | Main Process Line       | V_101           | v101        |
-| V-102                   | DO        | HVAC Feed Valve                             | HVAC Feed Line          | V_102           | (not displayed) |
-| V-103                   | DO        | Post-treatment Valve                        | Post-treatment Line     | V_103           | (not displayed) |
-| V-104                   | DO        | Ground Transfer Valve                       | Ground Transfer Line    | V_104           | (not displayed) |
-| V-105                   | DO        | Rooftop Pump Valve                          | Rooftop Line            | V_105           | (not displayed) |
-| V-106                   | DO        | Roof Tank Transfer Valve                    | Roof Transfer Line      | V_106           | (not displayed) |
-| UV-101                  | DO        | UV Disinfection Unit On/Off                 | Post-treatment          | UV_101          | uv101       |
-| ALM-101                 | DO        | General Alarm Output                        | Control Panel           | ALM_101         | alm101      |
-| PRV-101                 | DO        | Pressure Relief Valve Open/Close            | RO Membrane/Brine Line  | PRV_101         | prv101      |
-| SYSTEM_RUNNING          | DI/DO     | System Running State                        | Control Logic           | System_Running  | step        |
-| EMERGENCY_STOP          | DI/DO     | Emergency Stop Active                       | Control Logic           | Emergency_Stop  | step        |
-
-**Internal Logic Variables (PLC Only):**
-| Variable                | Type      | Description                                 |
-|-------------------------|-----------|---------------------------------------------|
-| PreTreatment_OK         | BOOL      | Pre-treatment conditions satisfied          |
-| RO_OK                   | BOOL      | RO system conditions satisfied              |
-| PostTreatment_OK        | BOOL      | Post-treatment conditions satisfied         |
-| Alarm                   | BOOL      | Internal alarm condition                    |
-| P103_OK                 | BOOL      | P-103 activation condition                  |
-| P104_OK                 | BOOL      | P-104 activation condition                  |
-| P105_OK                 | BOOL      | P-105 activation condition                  |
-| P106_OK                 | BOOL      | P-106 activation condition                  |
-| PRV_FAULT               | BOOL      | Pressure relief valve fault condition       |
-
-**Legend:**
-- AI: Analog Input
-- AO: Analog Output  
-- DO: Digital Output
-- DI: Digital Input
-- Comm: Communication
+Tabel I/O diimplementasikan dalam Python sebagai dictionary atau class, dengan pemetaan variabel berikut:
+- **AI (Analog Input):** Pembacaan sensor level, tekanan, flow, turbidity (misal: LT-101, PT-101, TU-101).
+- **DO (Digital Output):** Kontrol aktuator (pompa, valve, UV, alarm).
+- **DI/DO:** Status sistem (System_Running, Emergency_Stop).
+- **Internal Logic Variables:** Variabel boolean untuk status logika (PreTreatment_OK, RO_OK, Alarm, dst).
 
 ### 9.1.4 Control Logic Summary
 
 #### System States:
-1. **Emergency Stop**: All actuators OFF, ALM-101 ON, System_Running = FALSE
-2. **System Stopped**: All actuators OFF, System_Running = FALSE  
-3. **System Running**: Normal operation logic active, System_Running = TRUE
+1. **Emergency Stop**: Semua aktuator OFF, alarm ON, System_Running = FALSE.
+2. **System Stopped**: Semua aktuator OFF, System_Running = FALSE.
+3. **System Running**: Logika operasi normal aktif, System_Running = TRUE.
 
-#### Key Logic Conditions (from PLC implementation):
-- **PreTreatment_OK**: TU_101 < 5.0 NTU
-- **RO_OK**: PreTreatment_OK AND LT_101 > 20% AND PT_101 50-70 bar
-- **P_101 (Intake)**: RO_OK AND LT_101 < 95%
-- **P_102 (RO Pump)**: RO_OK
-- **P_103 (Post-treatment)**: LT_101 > 30%
-- **P_104 (Transfer to Ground)**: RO_OK AND LT_101 < 95%
-- **P_105 (Pump to Rooftop)**: LT_101 > 40% AND LT_102 < 95%
-- **P_106 (Transfer to Roof)**: LT_102 < 98%
-- **UV_101**: RO_OK (UV on when RO running)
-- **V_101**: P_101 OR P_102 (open when intake or RO active)
-- **PRV_101**: PT_101 > 70 bar (pressure relief)
-- **Alarm**: TU_101 > 10 NTU OR PT_101 < 45 OR PT_101 > 75 OR LT_101 < 10% OR LT_102 > 98%
+#### Key Logic Conditions (Python Implementation):
+- `PreTreatment_OK`: TU_101 < 5.0 NTU
+- `RO_OK`: PreTreatment_OK and LT_101 > 20% and 50 < PT_101 < 70
+- `P_101 (Intake)`: RO_OK and LT_101 < 95%
+- `P_102 (RO Pump)`: RO_OK
+- `P_103 (Post-treatment)`: LT_101 > 30%
+- `P_104 (Transfer to Ground)`: RO_OK and LT_101 < 95%
+- `P_105 (Pump to Rooftop)`: LT_101 > 40% and LT_102 < 95%
+- `P_106 (Transfer to Roof)`: LT_102 < 98%
+- `UV_101`: RO_OK
+- `V_101`: P_101 or P_102
+- `PRV_101`: PT_101 > 70
+- `Alarm`: TU_101 > 10 or PT_101 < 45 or PT_101 > 75 or LT_101 < 10 or LT_102 > 98
 
 ### 9.2 Notes
-- All analog signals are 4–20 mA.
-- All pumps and valves have local/remote and manual/auto modes.
-- System can be expanded for remote monitoring, data logging, and advanced diagnostics.
-- **Architecture Update:** The I/O table now includes all actuators and sensors as per the new architecture, including additional pumps (P-103 to P-106), system control variables (System_Running, Emergency_Stop), and explicit mapping between PLC variables and HMI display elements.
-- **Synchronization**: I/O table fully matches current PLC implementation (plc file) and HMI display (hmi.py) as of latest update.
+- Semua sinyal analog menggunakan range 4–20 mA (disimulasikan dalam Python).
+- Semua pompa dan valve dapat dikontrol secara local/remote dan manual/auto via HMI.
+- Sistem dapat dikembangkan untuk pemantauan jarak jauh, data logging lanjutan, dan diagnostik.
+- **Pembaruan Arsitektur:** Tabel I/O dan pemetaan variabel Python telah disesuaikan dengan kebutuhan simulasi dan HMI.
+- **Sinkronisasi:** Struktur variabel Python sepenuhnya sesuai dengan flowchart dan kebutuhan operasional HVAC.

@@ -110,7 +110,14 @@ flowchart LR
 Diagram berikut menggambarkan flowchart proses dan kontrol utama sistem HVAC:
 
 ```mermaid
+---
+config:
+  layout: elk
+  theme: base
+---
 flowchart TD
+    style Start fill:#b6fcb6,stroke:#2e8b57,stroke-width:3px
+    style End fill:#ffb3b3,stroke:#c0392b,stroke-width:3px
     Start([System Start])
     Mixing["Mix Outside & Return Air"]
     ModeSelect{Cooling or Heating?}
